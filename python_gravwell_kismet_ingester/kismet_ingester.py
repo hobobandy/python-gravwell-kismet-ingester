@@ -36,7 +36,7 @@ class KismetIngester:
 
     def validate_kismet_creds(self):
         uri = self.kismet_endpoint_uri("/session/check_login")
-        with httpx.Client(cookies=self.kismet_cookies()) as client:
+        with httpx.Client() as client:
             client.get(uri).raise_for_status()
 
     def validate_gravwell_creds(self):
