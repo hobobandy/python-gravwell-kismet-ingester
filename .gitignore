@@ -1,3 +1,8 @@
+# exclude config files, keep only the default
+config/*.toml
+!config/default.toml
+!config/example.toml
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

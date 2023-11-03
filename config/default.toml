@@ -1,0 +1,64 @@
+# WARNING - REMOVING LINES FROM THIS FILE MAY HAVE UNEXPECTED RESULTS
+# CUSTOMIZE VALUES SEEN BELOW USING A CONFIGURATION FILE (SEE EXAMPLE.TOML)
+
+# @todo not implemented
+# [general]
+# Number of seconds to go back and retrieve devices for (default: 60 seconds)
+# backtrack = 60
+
+[kismet]
+# @todo replace host/port with uri for https/http support, but urllib.parse, other https requirements
+host = "127.0.0.1"
+port = 2501
+apikey = ""
+
+[gravwell]
+host = "127.0.0.1"
+port = 80
+token = ""
+
+# Advanced section
+
+[kismet.fields]
+devices_IEEE80211 = [
+  "kismet.device.base.key",
+  "kismet.device.base.macaddr",
+  "kismet.device.base.related_devices",
+  "kismet.device.base.name",
+  "kismet.device.base.commonname",
+  "kismet.server.uuid",
+  "kismet.device.base.basic_type_set",
+  "kismet.device.base.crypt",
+  "kismet.device.base.first_time",
+  "kismet.device.base.last_time",
+  "kismet.device.base.packets.total",
+  "kismet.device.base.packets.rx_total",
+  "kismet.device.base.packets.tx_total",
+  "kismet.device.base.packets.llc",
+  "kismet.device.base.packets.error",
+  "kismet.device.base.packets.data",
+  "kismet.device.base.packets.crypt",
+  "kismet.device.base.packets.filtered",
+  "kismet.device.base.datasize",
+  "kismet.device.base.channel",
+  "kismet.device.base.frequency",
+  "kismet.device.base.freq_khz_map",
+  "dot11.device",
+  "kismet.device.base.num_alerts",
+  "kismet.device.base.seenby",
+  "kismet.device.base.phyname",
+  "kismet.device.base.manuf",
+  "kismet.device.base.signal/kismet.common.signal.type",
+  "kismet.device.base.signal/kismet.common.signal.last_signal",
+  "kismet.device.base.signal/kismet.common.signal.last_noise",
+  "kismet.device.base.signal/kismet.common.signal.min_signal",
+  "kismet.device.base.signal/kismet.common.signal.min_noise",
+  "kismet.device.base.signal/kismet.common.signal.max_signal",
+  "kismet.device.base.signal/kismet.common.signal.max_noise",
+  "kismet.device.base.signal/kismet.common.signal.maxseenrate",
+  "kismet.device.base.signal/kismet.common.signal.encodingset",
+  "kismet.device.base.signal/kismet.common.signal.carrierset",
+  "kismet.device.base.location",
+  "kismet.device.base.type"
+  ]
+
