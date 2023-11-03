@@ -81,17 +81,19 @@ class KismetIngester:
         tag = dict_get_deep(self.config, "gravwell.tags.kismet_device", "kismet-device")
         async with websockets.connect(uri) as websocket:
             print("Subscribing to all device changes...")
-            req = {"monitor": "*"} # wildcard, get updates for ALL devices
-            req['request'] = dict_get_deep(self.config, "kismet.websockets.request", 31337)
-            req['rate'] = dict_get_deep(self.config, "kismet.websockets.rate", 1)
-            req['fields'] = dict_get_deep(self.config, "kismet.fields.devices_IEEE80211", {})
+            req = {"monitor": "*"}  # wildcard, get updates for ALL devices
+            req["request"] = dict_get_deep(
+                self.config, "kismet.websockets.request", 31337
+            )
+            req["rate"] = dict_get_deep(self.config, "kismet.websockets.rate", 1)
+            req["fields"] = dict_get_deep(
+                self.config, "kismet.fields.devices_IEEE80211", {}
+            )
             await websocket.send(json.dumps(req))
             print("Success! Waiting for updates...")
             while websocket.open:
                 r = await websocket.recv()
-                await self.gravwell_put_ingest_entity(
-                    tag, r
-                )
+                await self.gravwell_put_ingest_entity(tag, r)
                 print("Device update sent to Gravwell...")
 
     async def kismet_system_status(self):
@@ -99,6 +101,4 @@ class KismetIngester:
         tag = dict_get_deep(self.config, "gravwell.tags.kismet_status", "kismet-status")
         async with httpx.AsyncClient() as client:
             r = await client.get(uri)
-            await self.gravwell_put_ingest_entity(
-                tag, r.text
-            )
+            await self.gravwell_put_ingest_entity(tag, r.text)
