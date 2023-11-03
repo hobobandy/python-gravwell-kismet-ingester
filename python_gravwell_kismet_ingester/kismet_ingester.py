@@ -7,7 +7,7 @@ import websockets
 from datetime import datetime, timezone
 from functools import lru_cache
 from urllib.parse import urlunparse
-
+from .utils import dict_get_deep
 
 logger = logging.getLogger(__name__)
 
@@ -76,28 +76,29 @@ class KismetIngester:
             )  # @todo confirm what this would look like, should we just return False?
 
     async def kismet_ws_monitor_all_devices(self):
+        # @todo helper methods per PHY from "/devices/views/all_views.json" result at init?
         uri = self.kismet_endpoint_uri("/devices/views/all/monitor.ws", scheme="ws")
+        tag = dict_get_deep(self.config, "gravwell.tags.kismet_device", "kismet-device")
         async with websockets.connect(uri) as websocket:
             print("Subscribing to all device changes...")
-            req = {  # @todo append the values below from config (except monitor *, that's required)
-                "monitor": "*",
-                "request": 31337,
-                "rate": 1,
-                "fields": self.config["kismet"]["fields"]["devices_IEEE80211"],
-            }
+            req = {"monitor": "*"} # wildcard, get updates for ALL devices
+            req['request'] = dict_get_deep(self.config, "kismet.websockets.request", 31337)
+            req['rate'] = dict_get_deep(self.config, "kismet.websockets.rate", 1)
+            req['fields'] = dict_get_deep(self.config, "kismet.fields.devices_IEEE80211", {})
             await websocket.send(json.dumps(req))
             print("Success! Waiting for updates...")
             while websocket.open:
                 r = await websocket.recv()
                 await self.gravwell_put_ingest_entity(
-                    "kismet-device", r
-                )  # @todo customize tag in config?
+                    tag, r
+                )
                 print("Device update sent to Gravwell...")
 
     async def kismet_system_status(self):
         uri = self.kismet_endpoint_uri("/system/status.json")
+        tag = dict_get_deep(self.config, "gravwell.tags.kismet_status", "kismet-status")
         async with httpx.AsyncClient() as client:
             r = await client.get(uri)
             await self.gravwell_put_ingest_entity(
-                "kismet-status", r.text
-            )  # @todo customize tag in config?
+                tag, r.text
+            )

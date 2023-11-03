@@ -12,14 +12,39 @@ host = "127.0.0.1"
 port = 2501
 apikey = ""
 
+# [kismet.websockets]
+# @todo not implemented
+# What PHY should be sent to Gravwell? (default: all)
+# Ref: https://www.kismetwireless.net/docs/api/device_views/#list-device-views
+# phy = ["phydot11_accesspoints"]
+# phy = ["phy-IEEE802.11", "phy-RFSENSOR", "phy-Z-Wave", "phy-Bluetooth", "phy-NrfMousejack", "phy-BTLE", "phy-METER", "phy-ADSB", "phy-802.15.4", "phy-RADIATION"]
+# phy = ["all"]
+
 [gravwell]
 host = "127.0.0.1"
 port = 80
 token = ""
 
+[gravwell.tags]
+# Tag to use for a device entity
+kismet_device = "kismet-device"
+# Tag to use for a system status entity
+kismet_status = "kismet-status"
+
 # Advanced section
 
+[kismet.websockets]
+# Unique request ID, supplied by the client. This ID will be used if the client wishes to unsubscribe from events in the future via the cancel API.
+# Ref: https://www.kismetwireless.net/docs/api/device_views/#subscription-api
+request = 31337
+# Rate limit, in seconds, to push updates. More frequent device updates are discarded.
+# Ref: https://www.kismetwireless.net/docs/api/device_views/#subscription-api
+rate = 1
+
 [kismet.fields]
+# devices_all = []
+# devices_RFSENSOR = []
+# devices
 devices_IEEE80211 = [
   "kismet.device.base.key",
   "kismet.device.base.macaddr",
