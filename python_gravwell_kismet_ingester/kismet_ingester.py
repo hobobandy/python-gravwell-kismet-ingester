@@ -4,10 +4,12 @@ import httpx
 import json
 import logging
 import websockets
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from datetime import datetime, timezone
 from functools import lru_cache
 from urllib.parse import urlunparse
 from .utils import dict_get_deep
+
 
 logger = logging.getLogger(__name__)
 
@@ -15,6 +17,13 @@ logger = logging.getLogger(__name__)
 class KismetIngester:
     def __init__(self, config):
         self.config = config
+
+        if dict_get_deep(self.config, "logging.debug", False):
+            logging_level = logging.DEBUG
+        else:
+            logging_level = logging.INFO
+
+        logger.setLevel(logging_level)
 
     # unused for now since websocket required query KISMET, but keeping just in case
     # @lru_cache
@@ -44,13 +53,39 @@ class KismetIngester:
         with httpx.Client(headers=self.gw_headers()) as client:
             client.get(uri).raise_for_status()
 
+    async def start_tasks(self):
+        self.scheduler = AsyncIOScheduler()
+        if self.config["kismet"]["ingest"]["system_status"]:
+            interval = dict_get_deep(self.config, "kismet.intervals.system_status", 10)
+            self.scheduler.add_job(
+                self.kismet_system_status, trigger="interval", seconds=interval
+            )
+            logger.info(f"Scheduled `System Status` every {interval} seconds...")
+        if self.config["kismet"]["ingest"]["channels_summary"]:
+            interval = dict_get_deep(
+                self.config, "kismet.intervals.channels_summary", 10
+            )
+            self.scheduler.add_job(
+                self.kismet_channels_summary, trigger="interval", seconds=interval
+            )
+            logger.info(f"Scheduled `Channels Summary` every {interval} seconds...")
+
+        logging.info("Press Ctrl+C to exit")
+        self.scheduler.start()
+        while True:
+            await asyncio.sleep(1000)
+
     def start(self):
+        # Raises an exception if creds are invalid, or another error happens
         self.validate_kismet_creds()
         self.validate_gravwell_creds()
+
         # @todo prebuild endpoint URIs and cache them?
-        asyncio.run(self.kismet_ws_monitor_all_devices())
-        # @todo figure out how multiple endpoints will be configured/ran
-        # asyncio.run(self.kismet_system_status())
+
+        try:
+            asyncio.run(self.start_tasks())
+        except (KeyboardInterrupt, SystemExit):
+            pass
 
     def stop(self):
         pass
@@ -99,6 +134,19 @@ class KismetIngester:
     async def kismet_system_status(self):
         uri = self.kismet_endpoint_uri("/system/status.json")
         tag = dict_get_deep(self.config, "gravwell.tags.kismet_status", "kismet-status")
+        logger.info("System Status: Running...")
+        async with httpx.AsyncClient() as client:
+            r = await client.get(uri)
+            await self.gravwell_put_ingest_entity(tag, r.text)
+
+    async def kismet_channels_summary(self):
+        uri = self.kismet_endpoint_uri("/channels/channels.json")
+        tag = dict_get_deep(
+            self.config,
+            "gravwell.tags.kismet_channels_summary",
+            "kismet-channels_summary",
+        )
+        logger.info("Channels Summary: Running...")
         async with httpx.AsyncClient() as client:
             r = await client.get(uri)
             await self.gravwell_put_ingest_entity(tag, r.text)

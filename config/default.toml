@@ -6,19 +6,15 @@
 # Number of seconds to go back and retrieve devices for (default: 60 seconds)
 # backtrack = 60
 
+[logging]
+debug = false # This can be very verbose, meant for development purposes
+# @todo implement log files to monitor when run as a service/background process?
+
 [kismet]
 # @todo replace host/port with uri for https/http support, but urllib.parse, other https requirements
 host = "127.0.0.1"
 port = 2501
 apikey = ""
-
-# [kismet.websockets]
-# @todo not implemented
-# What PHY should be sent to Gravwell? (default: all)
-# Ref: https://www.kismetwireless.net/docs/api/device_views/#list-device-views
-# phy = ["phydot11_accesspoints"]
-# phy = ["phy-IEEE802.11", "phy-RFSENSOR", "phy-Z-Wave", "phy-Bluetooth", "phy-NrfMousejack", "phy-BTLE", "phy-METER", "phy-ADSB", "phy-802.15.4", "phy-RADIATION"]
-# phy = ["all"]
 
 [gravwell]
 host = "127.0.0.1"
@@ -26,12 +22,32 @@ port = 80
 token = ""
 
 [gravwell.tags]
-# Tag to use for a device entity
-kismet_device = "kismet-device"
-# Tag to use for a system status entity
-kismet_status = "kismet-status"
+kismet_device = "kismet-device" # Tag to use for a device entity
+kismet_status = "kismet-status" # Tag to use for a system status entity
 
 # Advanced section
+
+[kismet.ingest]
+# @todo not implemented
+system_status     = true # Ref: https://www.kismetwireless.net/docs/api/system/#system-status
+# packet_stats    = false # Ref: https://www.kismetwireless.net/docs/api/system/#packet-statistics
+eventbus          = false # Ref: https://www.kismetwireless.net/docs/api/eventbus/#eventbus-websocket
+eventbus_topics   = ["ALERT", "BATTERY"] # Ref: https://www.kismetwireless.net/docs/api/eventbus/#eventbus-topics
+devices           = true # Ref: https://www.kismetwireless.net/docs/api/device_views/#realtime-device-monitoring-by-view
+devices_phy       = ["all"] # Ref: https://www.kismetwireless.net/docs/api/device_views/#list-device-views
+# messages        = false # Ref: https://www.kismetwireless.net/docs/api/messages/#recent-messages
+# alerts          = false # Ref: https://www.kismetwireless.net/docs/api/alerts/#recent-alerts
+channels_summary  = true # Ref: https://www.kismetwireless.net/docs/api/channels/#channel-summary
+# datasources     = false # Ref: https://www.kismetwireless.net/docs/api/datasources/#datasource-list
+
+[kismet.intervals]
+system_status     = 10
+# packet_stats    = 10
+devices           = 10
+# messages        = 10
+# alerts          = 10
+channels_summary  = 10
+# datasources     = 10
 
 [kismet.websockets]
 # Unique request ID, supplied by the client. This ID will be used if the client wishes to unsubscribe from events in the future via the cancel API.
@@ -42,9 +58,45 @@ request = 31337
 rate = 1
 
 [kismet.fields]
-# devices_all = []
-# devices_RFSENSOR = []
-# devices
+devices_all = [
+  "kismet.device.base.key",
+  "kismet.device.base.macaddr",
+  "kismet.device.base.related_devices",
+  "kismet.device.base.name",
+  "kismet.device.base.commonname",
+  "kismet.server.uuid",
+  "kismet.device.base.basic_type_set",
+  "kismet.device.base.first_time",
+  "kismet.device.base.last_time",
+  "kismet.device.base.packets.total",
+  "kismet.device.base.packets.rx_total",
+  "kismet.device.base.packets.tx_total",
+  "kismet.device.base.packets.llc",
+  "kismet.device.base.packets.error",
+  "kismet.device.base.packets.data",
+  "kismet.device.base.packets.crypt",
+  "kismet.device.base.packets.filtered",
+  "kismet.device.base.datasize",
+  "kismet.device.base.channel",
+  "kismet.device.base.frequency",
+  "kismet.device.base.freq_khz_map",
+  "kismet.device.base.num_alerts",
+  "kismet.device.base.seenby",
+  "kismet.device.base.phyname",
+  "kismet.device.base.manuf",
+  "kismet.device.base.signal/kismet.common.signal.type",
+  "kismet.device.base.signal/kismet.common.signal.last_signal",
+  "kismet.device.base.signal/kismet.common.signal.last_noise",
+  "kismet.device.base.signal/kismet.common.signal.min_signal",
+  "kismet.device.base.signal/kismet.common.signal.min_noise",
+  "kismet.device.base.signal/kismet.common.signal.max_signal",
+  "kismet.device.base.signal/kismet.common.signal.max_noise",
+  "kismet.device.base.signal/kismet.common.signal.maxseenrate",
+  "kismet.device.base.signal/kismet.common.signal.encodingset",
+  "kismet.device.base.signal/kismet.common.signal.carrierset",
+  "kismet.device.base.location",
+  "kismet.device.base.type"
+]
 devices_IEEE80211 = [
   "kismet.device.base.key",
   "kismet.device.base.macaddr",
