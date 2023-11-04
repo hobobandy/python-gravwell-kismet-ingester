@@ -2,7 +2,6 @@ import argparse
 import logging
 from . import tomlconfig
 from .kismet_ingester import KismetIngester
-from .utils import dict_get_deep
 
 
 if __name__ == "__main__":
