@@ -5,6 +5,7 @@ import functools
 import httpx
 import json
 import logging
+import os
 import threading
 import websockets
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -86,8 +87,8 @@ class KismetIngester:
         self._client = httpx.AsyncClient()
         self._client_gw = httpx.AsyncClient(headers=self.gw_headers())
 
-        # await self.kismet_validate_creds()
-        # await self.gravwell_validate_creds()
+        await self.kismet_validate_creds()
+        await self.gravwell_validate_creds()
 
         await self.start_tasks()
 

@@ -1,5 +1,6 @@
 import argparse
 import logging
+import os
 from pathlib import Path
 from . import tomlconfig
 from .kismet_ingester import start_kismet_ingester
@@ -27,14 +28,15 @@ parser.add_argument(
 
 args = parser.parse_args()
 
+logger = logging.getLogger()
+
 if not args.quiet:
     logging.basicConfig(
-        format="[%(asctime)s] %(module)s - %(message)s",
+        format="[%(asctime)s] %(levelname)s - %(message)s",
         datefmt="%H:%M:%S",
     )
 
 if args.debug:
-    logger = logging.getLogger()
     logger.setLevel(logging.DEBUG)
 
 try:
@@ -44,5 +46,7 @@ except FileNotFoundError:
     config = {}
 finally:
     config = tomlconfig.load(args.config, config)
+
+logger.warning(f"Process ID: {os.getpid()}")
 
 start_kismet_ingester(config)
