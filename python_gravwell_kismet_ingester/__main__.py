@@ -2,7 +2,7 @@ import argparse
 import logging
 from pathlib import Path
 from . import tomlconfig
-from .kismet_ingester import KismetIngester
+from .kismet_ingester import start_kismet_ingester
 
 
 parser = argparse.ArgumentParser(
@@ -45,5 +45,4 @@ except FileNotFoundError:
 finally:
     config = tomlconfig.load(args.config, config)
 
-k = KismetIngester(config)
-k.start()
+start_kismet_ingester(config)
