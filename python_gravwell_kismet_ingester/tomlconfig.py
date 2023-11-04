@@ -3,6 +3,7 @@ from functools import reduce
 from pathlib import Path
 from typing import Any, Callable
 
+
 def dict_merge(d1: dict, d2: dict) -> dict:
     # Recursive dict merge
     for k, v in d2.items():
