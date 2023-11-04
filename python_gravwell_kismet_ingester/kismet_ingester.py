@@ -28,15 +28,16 @@ class KismetIngester:
             logging_level = logging.INFO
 
         logger.setLevel(logging_level)
-    
+
     def suppress_asyncio_cancelled_error(func):
-        """Decorator to reduce code repetition. Suppresses task cancellation exception.
-        """
+        """Decorator to reduce code repetition. Suppresses task cancellation exception."""
+
         @functools.wraps(func)
         async def wrapper(*args, **kwargs):
             # Suppressing exception, no concerns since in control of the asyncio loop
             with contextlib.suppress(asyncio.CancelledError):
                 await func(*args, **kwargs)
+
         return wrapper
 
     @lru_cache
@@ -74,7 +75,9 @@ class KismetIngester:
         self.scheduler.start()
         self._sleep_loop.clear()
         while not self._sleep_loop.is_set():
-            await asyncio.sleep(0) # Keep alive for scheduler to run, otherwise script exits.
+            await asyncio.sleep(
+                0
+            )  # Keep alive for scheduler to run, otherwise script exits.
 
     async def start(self):
         # Prepare singleton-style clients
@@ -82,17 +85,17 @@ class KismetIngester:
         # Re-use the same client instances to get the most benefit from connection pooling
         self._client = httpx.AsyncClient()
         self._client_gw = httpx.AsyncClient(headers=self.gw_headers())
-        
+
         # await self.kismet_validate_creds()
         # await self.gravwell_validate_creds()
-        
+
         await self.start_tasks()
 
     async def stop(self):
         if not self._sleep_loop.is_set():
             logger.info("Stopping asyncio sleep loop.")
             self._sleep_loop.set()
-    
+
     async def kismet_validate_creds(self):
         uri = self.kismet_build_endpoint_uri("/session/check_login")
         try:
@@ -124,7 +127,7 @@ class KismetIngester:
         )  # convert b64 bytes to a string representation
         r = await self._client_gw.put(uri, json=entity_json)
         r.raise_for_status()
-    
+
     async def kismet_get_endpoint(self, uri: str, tag: str) -> None:
         r = await self._client.get(uri)
         r.raise_for_status()
@@ -163,7 +166,9 @@ class KismetIngester:
     # @todo decorator to handle exceptions?
     async def kismet_ws_monitor_all_devices(self) -> None:
         # @todo helper methods per PHY from "/devices/views/all_views.json" result at init?
-        uri = self.kismet_build_endpoint_uri("/devices/views/all/monitor.ws", scheme="ws")
+        uri = self.kismet_build_endpoint_uri(
+            "/devices/views/all/monitor.ws", scheme="ws"
+        )
         tag = dict_get_deep(self.config, "gravwell.tags.kismet_device", "kismet-device")
         async with websockets.connect(uri) as websocket:
             logger.info("Subscribing to all device changes...")
