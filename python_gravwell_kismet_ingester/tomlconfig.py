@@ -1,8 +1,10 @@
 import tomllib
+from functools import reduce
 from pathlib import Path
+from typing import Any, Callable
 
-
-def dict_merge(d1, d2):
+def dict_merge(d1: dict, d2: dict) -> dict:
+    # Recursive dict merge
     for k, v in d2.items():
         if k in d1 and isinstance(d1[k], dict) and isinstance(v, dict):
             dict_merge(d1[k], v)
@@ -11,7 +13,17 @@ def dict_merge(d1, d2):
     return d1
 
 
-def dict_type_conv_by_prefix(d, prefix, _type):
+def dict_get_deep(_dict: dict, keys: str, default: Any = None) -> Any:
+    # Safely get a key in depth, return default if it does not exist
+    # Example: dict_deep_get({key1: {key2: {key3: "hello"}}}, "key1.key2.key3", "goodbye")
+    return reduce(
+        lambda d, key: d.get(key, default) if isinstance(d, dict) else default,
+        keys.split("."),
+        _dict,
+    )
+
+
+def dict_type_conv_by_prefix(d: dict, prefix: str, _type: Callable) -> dict:
     for k, v in d.items():
         if k == "tomlconfig":  # values in this section shouldn't be modified
             continue

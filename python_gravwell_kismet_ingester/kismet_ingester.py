@@ -8,7 +8,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from datetime import datetime, timezone
 from functools import lru_cache
 from urllib.parse import urlunparse
-from .utils import dict_get_deep
+from .tomlconfig import dict_get_deep
 
 
 logger = logging.getLogger(__name__)
