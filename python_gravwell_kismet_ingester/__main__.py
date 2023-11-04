@@ -1,5 +1,6 @@
 import argparse
 import logging
+from pathlib import Path
 from . import tomlconfig
 from .kismet_ingester import KismetIngester
 
@@ -10,7 +11,10 @@ if __name__ == "__main__":
         description="transfer kismet data to gravwell for ingest",
     )
     parser.add_argument(
-        "-q", "--quiet", action="store_true", help="logging will not output to stdout"
+        "--quiet", action="store_true", help="logging will not output to stdout"
+    )
+    parser.add_argument(
+        "--debug", action="store_true", help="increase root-level verbosity, for development purposes"
     )
     parser.add_argument(
         "-c",
@@ -21,17 +25,24 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
-
-    config = tomlconfig.load("config/default.toml")
-
-    if args.config:
-        config = tomlconfig.load(args.config, config)
-
+    
     if not args.quiet:
         logging.basicConfig(
             format="[%(asctime)s] %(module)s - %(message)s",
             datefmt="%H:%M:%S",
         )
+    
+    if args.debug:
+        logger = logging.getLogger()
+        logger.setLevel(logging.DEBUG)
+    
+    try:
+        config = tomlconfig.load(Path(__file__).parent / "default.toml")
+    except FileNotFoundError:
+        logging.warning("Default config file missing, unexpected errors may happen.")
+        config = {}
+    finally:
+        config = tomlconfig.load(args.config, config)
 
     k = KismetIngester(config)
     k.start()

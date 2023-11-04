@@ -1,5 +1,8 @@
+# RECOMMENDATION - DO NOT DELETE THIS FILE, RENAME IT AT BEST IF YOU KNOW 
+# YOUR USER CONFIG IS COMPLETE.
+
 # WARNING - REMOVING LINES FROM THIS FILE MAY HAVE UNEXPECTED RESULTS
-# CUSTOMIZE VALUES SEEN BELOW USING A CONFIGURATION FILE (SEE EXAMPLE.TOML)
+# CUSTOMIZE VALUES SEEN BELOW USING A USER CONFIGURATION FILE (SEE EXAMPLE.TOML)
 
 # @todo not implemented
 # [general]
@@ -7,7 +10,7 @@
 # backtrack = 60
 
 [logging]
-debug = false # This can be very verbose, meant for development purposes
+debug = false # Enables module-level verbosity, meant for development purposes
 # @todo implement log files to monitor when run as a service/background process?
 
 [kismet]
