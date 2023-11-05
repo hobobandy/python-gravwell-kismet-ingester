@@ -5,7 +5,6 @@ import functools
 import httpx
 import json
 import logging
-import os
 import threading
 import websockets
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
