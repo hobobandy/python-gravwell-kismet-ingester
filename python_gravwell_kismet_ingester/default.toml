@@ -4,14 +4,13 @@
 # WARNING - REMOVING LINES FROM THIS FILE MAY HAVE UNEXPECTED RESULTS
 # CUSTOMIZE VALUES SEEN BELOW USING A USER CONFIGURATION FILE (SEE EXAMPLE.TOML)
 
-# @todo not implemented
-# [general]
-# Number of seconds to go back and retrieve devices for (default: 60 seconds)
-# backtrack = 60
+[general]
+# Number of seconds to go back and retrieve data for when timestamps are involved
+# Default: 60 seconds
+backtrack = 60
 
 [logging]
 debug = false # Enables module-level verbosity, meant for development purposes
-# @todo implement log files to monitor when run as a service/background process?
 
 [kismet]
 # @todo replace host/port with uri for https/http support, but urllib.parse, other https requirements
@@ -28,19 +27,34 @@ token = ""
 kismet_device = "kismet-device" # Tag to use for a device entity
 kismet_status = "kismet-status" # Tag to use for a system status entity
 
+[gravwell.tags.kismet.phy]
+phydot11_accesspoints = "kismet-ap"
+phy-IEEE802.11 = "kismet-wifi"
+phy-RFSENSOR = "kismet-sensor"
+phy-Z-Wave = "kismet-zwave"
+phy-Bluetooth = "kismet-bt"
+phy-UAV = "kismet-uav"
+phy-NrfMousejack = "kismet-mousejack"
+phy-BTLE = "kismet-btle"
+phy-METER = "kismet-meter"
+phy-ADSB = "kismet-adsb"
+phy-802.15.4 = "kismet-lrwpan"
+phy-RADIATION = "kismet-radiation"
+
 # Advanced section
 
 [kismet.ingest]
 # @todo not implemented
-system_status     = true # Ref: https://www.kismetwireless.net/docs/api/system/#system-status
+system_status     = false # Ref: https://www.kismetwireless.net/docs/api/system/#system-status
 # packet_stats    = false # Ref: https://www.kismetwireless.net/docs/api/system/#packet-statistics
-eventbus          = false # Ref: https://www.kismetwireless.net/docs/api/eventbus/#eventbus-websocket
-eventbus_topics   = ["ALERT", "BATTERY"] # Ref: https://www.kismetwireless.net/docs/api/eventbus/#eventbus-topics
+# eventbus          = false # Ref: https://www.kismetwireless.net/docs/api/eventbus/#eventbus-websocket
+# eventbus_topics   = ["ALERT", "BATTERY"] # Ref: https://www.kismetwireless.net/docs/api/eventbus/#eventbus-topics
 devices           = true # Ref: https://www.kismetwireless.net/docs/api/device_views/#realtime-device-monitoring-by-view
-devices_phy       = ["all"] # Ref: https://www.kismetwireless.net/docs/api/device_views/#list-device-views
+devices_all       = true # Ref: https://www.kismetwireless.net/docs/api/device_views/#list-device-views
+devices_phy       = ["phydot11_accesspoints"] # Ref: https://www.kismetwireless.net/docs/api/device_views/#list-device-views
 # messages        = false # Ref: https://www.kismetwireless.net/docs/api/messages/#recent-messages
 # alerts          = false # Ref: https://www.kismetwireless.net/docs/api/alerts/#recent-alerts
-channels_summary  = true # Ref: https://www.kismetwireless.net/docs/api/channels/#channel-summary
+channels_summary  = false # Ref: https://www.kismetwireless.net/docs/api/channels/#channel-summary
 # datasources     = false # Ref: https://www.kismetwireless.net/docs/api/datasources/#datasource-list
 
 [kismet.intervals]
@@ -60,8 +74,8 @@ request = 31337
 # Ref: https://www.kismetwireless.net/docs/api/device_views/#subscription-api
 rate = 1
 
-[kismet.fields]
-devices_all = [
+[kismet.fields.devices]
+all = [
   "kismet.device.base.key",
   "kismet.device.base.macaddr",
   "kismet.device.base.related_devices",
@@ -100,7 +114,8 @@ devices_all = [
   "kismet.device.base.location",
   "kismet.device.base.type"
 ]
-devices_IEEE80211 = [
+phydot11_accesspoints = []
+phy-IEEE802.11 = [
   "kismet.device.base.key",
   "kismet.device.base.macaddr",
   "kismet.device.base.related_devices",
@@ -141,4 +156,13 @@ devices_IEEE80211 = [
   "kismet.device.base.location",
   "kismet.device.base.type"
   ]
-
+phy-RFSENSOR = []
+phy-Z-Wave = []
+phy-Bluetooth = []
+phy-UAV = []
+phy-NrfMousejack = []
+phy-BTLE = []
+phy-METER = []
+phy-ADSB = []
+phy-802.15.4 = []
+phy-RADIATION = []
