@@ -1,5 +1,10 @@
 # simple example, copy/rename this file as you wish
 
+[general]
+# Number of seconds to go back and retrieve data for when timestamps are involved
+# Default: 60 seconds
+backtrack = 60
+
 [kismet]
 host = "192.168.0.10"
 apikey = "ABC123"
@@ -7,3 +12,45 @@ apikey = "ABC123"
 [gravwell]
 host = "192.168.0.11"
 token = "ABC123"
+
+[gravwell.tags]
+kismet_device = "kismet-device" # Tag to use for a device entity
+kismet_status = "kismet-status" # Tag to use for a system status entity
+
+[gravwell.tags.kismet.phy]
+phydot11_accesspoints = "kismet-ap"
+phy-IEEE802.11 = "kismet-wifi"
+phy-RFSENSOR = "kismet-sensor"
+phy-Z-Wave = "kismet-zwave"
+phy-Bluetooth = "kismet-bt"
+phy-UAV = "kismet-uav"
+phy-NrfMousejack = "kismet-mousejack"
+phy-BTLE = "kismet-btle"
+phy-METER = "kismet-meter"
+phy-ADSB = "kismet-adsb"
+phy-802.15.4 = "kismet-lrwpan"
+phy-RADIATION = "kismet-radiation"
+
+# Advanced section
+
+[kismet.ingest]
+system_status     = false # Ref: https://www.kismetwireless.net/docs/api/system/#system-status
+# packet_stats    = false # Ref: https://www.kismetwireless.net/docs/api/system/#packet-statistics
+# eventbus          = false # Ref: https://www.kismetwireless.net/docs/api/eventbus/#eventbus-websocket
+# eventbus_topics   = ["ALERT", "BATTERY"] # Ref: https://www.kismetwireless.net/docs/api/eventbus/#eventbus-topics
+devices           = true # Ref: https://www.kismetwireless.net/docs/api/device_views/#realtime-device-monitoring-by-view
+devices_all       = true # Ref: https://www.kismetwireless.net/docs/api/device_views/#list-device-views
+devices_phy       = ["phydot11_accesspoints"] # Ref: https://www.kismetwireless.net/docs/api/device_views/#list-device-views
+# messages        = false # Ref: https://www.kismetwireless.net/docs/api/messages/#recent-messages
+# alerts          = false # Ref: https://www.kismetwireless.net/docs/api/alerts/#recent-alerts
+channels_summary  = false # Ref: https://www.kismetwireless.net/docs/api/channels/#channel-summary
+# datasources     = false # Ref: https://www.kismetwireless.net/docs/api/datasources/#datasource-list
+
+[kismet.intervals]
+system_status     = 10
+# packet_stats    = 10
+devices           = 10
+# messages        = 10
+# alerts          = 10
+channels_summary  = 10
+# datasources     = 10

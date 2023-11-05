@@ -66,14 +66,6 @@ devices           = 10
 channels_summary  = 10
 # datasources     = 10
 
-[kismet.websockets]
-# Unique request ID, supplied by the client. This ID will be used if the client wishes to unsubscribe from events in the future via the cancel API.
-# Ref: https://www.kismetwireless.net/docs/api/device_views/#subscription-api
-request = 31337
-# Rate limit, in seconds, to push updates. More frequent device updates are discarded.
-# Ref: https://www.kismetwireless.net/docs/api/device_views/#subscription-api
-rate = 1
-
 [kismet.fields.devices]
 all = [
   "kismet.device.base.key",
