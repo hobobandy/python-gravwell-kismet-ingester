@@ -3,7 +3,6 @@ import base64
 import httpx
 import json
 import logging
-import threading
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from datetime import datetime, timezone
 from functools import lru_cache
@@ -42,7 +41,9 @@ class KismetIngester:
 
         logger.setLevel(logging_level)
 
-        self._sleep_loop = threading.Event()
+        self._kismet_lock = asyncio.Lock()
+        self._gravwell_lock = asyncio.Lock()
+        self._sleep_loop = asyncio.Event()
         self._timestamps = {"devices_by_phy": {}}
         for phy in VALID_KISMET_PHY + ("all",):
             self._timestamps["devices_by_phy"][phy] = -1 * dict_get_deep(
@@ -60,15 +61,15 @@ class KismetIngester:
         await self.gravwell_validate_creds()
 
         self.create_tasks()
-        await self.start_tasks()
+        await self.start_scheduler()
 
     async def stop(self):
         if not self._sleep_loop.is_set():
             logger.info("Stopping asyncio sleep loop.")
             self._sleep_loop.set()
 
-    async def start_tasks(self):
-        logger.info("Starting tasks... Press Ctrl+C to exit.")
+    async def start_scheduler(self):
+        logger.info("Starting scheduler... Press Ctrl+C to exit.")
         self.scheduler.start()
 
         # Keep alive for scheduler to run, otherwise script exits
@@ -141,12 +142,13 @@ class KismetIngester:
         try:
             r = await self._client.get(uri)
             r.raise_for_status()
-        except httpx.HTTPStatusError as e:
-            logger.critical("HTTP error during validation of Kismet credentials:")
+            logger.info("Kismet credentials validated.")
+        except (httpx.HTTPStatusError, httpx.ConnectError) as e:
+            logger.critical("Kismet Credentials Validation:")
             logger.critical(e)
             raise SystemExit()
         except httpx.ReadTimeout:
-            logger.critical("HTTP request timed out - Kismet server alive? This may be caused by a big/slow API response.")
+            logger.critical("Kismet Credentials Validation: HTTP request timed out - This may be caused by a slow Kismet API response.")
             raise SystemExit()
 
     async def gravwell_validate_creds(self):
@@ -154,12 +156,13 @@ class KismetIngester:
         try:
             r = await self._client_gw.get(uri)
             r.raise_for_status()
-        except httpx.HTTPStatusError as e:
-            logger.critical("HTTP error during validation of Gravwell credentials:")
+            logger.info("Gravwell credentials validated.")
+        except (httpx.HTTPStatusError, httpx.ConnectError) as e:
+            logger.critical("Gravwell Credentials Validation: ")
             logger.critical(e)
             raise SystemExit()
         except httpx.ReadTimeout:
-            logger.critical("HTTP request timed out - Kismet server alive? This may be caused by a big/slow API response.")
+            logger.critical("Gravwell Credentials Validation: HTTP request timed out - This may be caused by a slow Gravwell API response.")
             raise SystemExit()
 
     async def gravwell_put_ingest_entity(self, tag: str, data: str) -> bool:
@@ -171,8 +174,11 @@ class KismetIngester:
         entity_json = (
             {"TS": ts, "Tag": tag, "Data": b64_data.decode("utf-8")},
         )  # convert b64 bytes to a string representation
-        r = await self._client_gw.put(uri, json=entity_json)
-        r.raise_for_status()
+        async with self._gravwell_lock:
+            logger.debug("Gravewell PUT Ingest - Acquired Gravwell lock.")
+            r = await self._client_gw.put(uri, json=entity_json)
+            r.raise_for_status()
+            logger.debug("Gravewell PUT Ingest - Releasing Gravwell lock.")
 
     async def kismet_get_endpoint(self, uri: str, tag: str) -> None:
         r = await self._client.get(uri)
@@ -189,18 +195,23 @@ class KismetIngester:
         uri = self.kismet_build_endpoint_uri("/system/status.json")
         tag = dict_get_deep(self.config, "gravwell.tags.kismet_status", "kismet-status")
         logger.info("System Status - Running...")
-        try:
-            r = await self.kismet_get_endpoint(uri, tag)
-            await self.gravwell_put_ingest_entity(tag, r.text)
-        except httpx.HTTPStatusError as e:
-            logger.critical("System Status - HTTP error during task:")
-            logger.critical(e)
-            logger.critical("Exiting due to unrecoverable error...")
-            await self.stop()
-        except httpx.ReadTimeout:
-            logger.critical("HTTP request timed out - Kismet server alive? This may be caused by a big/slow API response.")
-            logger.critical("Exiting due to unrecoverable error...")
-            await self.stop()
+        async with self._kismet_lock:
+            logger.debug("System Status - Acquired Kismet lock.")
+            try:
+                r = await self.kismet_get_endpoint(uri, tag)
+                await self.gravwell_put_ingest_entity(tag, r.text)
+            except (httpx.HTTPStatusError, httpx.ConnectError) as e:
+                logger.critical("System Status:")
+                logger.critical(e)
+                logger.critical("Exiting due to unrecoverable error...")
+                await self.stop()
+            except httpx.ReadTimeout:
+                logger.critical("System Status: HTTP request timed out - This may be caused by a big/slow Kismet API response.")
+                logger.critical("Exiting due to unrecoverable error...")
+                await self.stop()
+            finally:
+                logger.debug("System Status - Releasing Kismet lock.")
+        logger.info("System Status - Completed.")
 
     @suppress_asyncio_cancelled_error
     async def kismet_channels_summary(self) -> None:
@@ -211,20 +222,26 @@ class KismetIngester:
             "kismet-channels_summary",
         )
         logger.info("Channels Summary - Running...")
-        try:
-            r = await self.kismet_get_endpoint(uri, tag)
-            await self.gravwell_put_ingest_entity(tag, r.text)
-        except httpx.HTTPStatusError as e:
-            logger.critical("Channels Summary - HTTP error during task:")
-            logger.critical(e)
-            logger.critical("Exiting due to unrecoverable error...")
-            await self.stop()
-        except httpx.ReadTimeout:
-            logger.critical("HTTP request timed out - Kismet server alive? This may be caused by a big/slow API response.")
-            logger.critical("Exiting due to unrecoverable error...")
-            await self.stop()
+        async with self._kismet_lock:
+            logger.debug("Channels Summary - Acquired Kismet lock.")
+            try:
+                r = await self.kismet_get_endpoint(uri, tag)
+                await self.gravwell_put_ingest_entity(tag, r.text)
+            except (httpx.HTTPStatusError, httpx.ConnectError) as e:
+                logger.critical("Channels Summary:")
+                logger.critical(e)
+                logger.critical("Exiting due to unrecoverable error...")
+                await self.stop()
+            except httpx.ReadTimeout:
+                logger.critical("Channels Summary: HTTP request timed out - This may be caused by a big/slow Kismet API response.")
+                logger.critical("Exiting due to unrecoverable error...")
+                await self.stop()
+            finally:
+                logger.debug("Channels Summary - Releasing Kismet lock.")
+        logger.info("Channels Summary - Completed.")
 
     @suppress_asyncio_cancelled_error
+    # @todo can we cache the tasks to prevent dict_get_deep from fetching every time?
     async def kismet_devices_by_phy(self, phy: str) -> None:
         timestamp = self._timestamps["devices_by_phy"][phy]
         endpoint_str = f"/devices/views/{phy}/last-time/{timestamp}/devices.json"
@@ -233,33 +250,38 @@ class KismetIngester:
             self.config, f"gravwell.tags.kismet.phy.{phy}", "kismet-device"
         )
         logger.info(f"Devices by PHY ({phy}): Running...")
-        try:
-            # @todo there may be duplicate data? any way to find timestamp from response?
-            self._timestamps["devices_by_phy"][phy] = int(datetime.now().timestamp())
-            # Field simplification, highly recommended to prevent Kismet hangups
-            # From most restrictive (PHY), to recommended (common), to failsafe (all fields)
-            data = {}
-            fields = dict_get_deep(self.config, f"kismet.fields.devices.{phy}")
-            if not fields:
-                fields = dict_get_deep(self.config, f"kismet.fields.devices.common")
-            if fields:
-                data["fields"] = fields
-            r = await self.kismet_post_endpoint(uri, tag, data)
-            resp = r.json()
-            logger.info(f"{len(resp)} devices updated since last run.")
-            for d in resp:
-                data = json.dumps(d)
-                await self.gravwell_put_ingest_entity(tag, data)
-        except httpx.HTTPStatusError as e:
-            logger.critical(f"HTTP error during Kismet `Devices by PHY {phy}` task:")
-            logger.critical(e)
-            logger.critical("Exiting due to unrecoverable error...")
-            await self.stop()
-        except httpx.ReadTimeout:
-            logger.critical("HTTP request timed out - Kismet server alive? This may be caused by a big/slow API response.")
-            logger.critical("Exiting due to unrecoverable error...")
-            await self.stop()
-
+        async with self._kismet_lock:
+            logger.info(f"Devices by PHY ({phy}): Acquired Kismet lock.")
+            try:
+                # @todo there may be duplicate data? any way to find timestamp from response?
+                self._timestamps["devices_by_phy"][phy] = int(datetime.now().timestamp())
+                # Field simplification, highly recommended to prevent Kismet hangups
+                # From most restrictive (PHY), to recommended (common), to failsafe (all fields)
+                data = {}
+                fields = dict_get_deep(self.config, f"kismet.fields.devices.{phy}")
+                if not fields:
+                    fields = dict_get_deep(self.config, f"kismet.fields.devices.common")
+                if fields:
+                    data["fields"] = fields
+                # logger.debug(f"Fields: {data}")
+                r = await self.kismet_post_endpoint(uri, tag, data)
+                resp = r.json()
+                logger.info(f"Devices by PHY ({phy}): {len(resp)} device updates since last run.")
+                for d in resp:
+                    data = json.dumps(d)
+                    await self.gravwell_put_ingest_entity(tag, data)
+            except (httpx.HTTPStatusError, httpx.ConnectError) as e:
+                logger.critical(f"Devices by PHY ({phy}):")
+                logger.critical(e)
+                logger.critical("Exiting due to unrecoverable error...")
+                await self.stop()
+            except httpx.ReadTimeout:
+                logger.critical("Devices by PHY ({phy}): HTTP request timed out - This may be caused by a big/slow Kismet API response.")
+                logger.critical("Exiting due to unrecoverable error...")
+                await self.stop()
+            finally:
+                logger.info(f"Devices by PHY ({phy}): Releasing Kismet lock.")
+        logger.info(f"Devices by PHY ({phy}): Completed.")
 
 def start_kismet_ingester(config: dict) -> None:
     k = KismetIngester(config)
