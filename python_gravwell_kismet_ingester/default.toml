@@ -50,8 +50,8 @@ system_status     = false # Ref: https://www.kismetwireless.net/docs/api/system/
 # eventbus          = false # Ref: https://www.kismetwireless.net/docs/api/eventbus/#eventbus-websocket
 # eventbus_topics   = ["ALERT", "BATTERY"] # Ref: https://www.kismetwireless.net/docs/api/eventbus/#eventbus-topics
 devices           = true # Ref: https://www.kismetwireless.net/docs/api/device_views/#realtime-device-monitoring-by-view
-devices_all       = true # Ref: https://www.kismetwireless.net/docs/api/device_views/#list-device-views
-devices_phy       = ["phydot11_accesspoints"] # Ref: https://www.kismetwireless.net/docs/api/device_views/#list-device-views
+devices_all       = false # Ref: https://www.kismetwireless.net/docs/api/device_views/#list-device-views
+devices_phy       = ["phy-RFSENSOR"] # Ref: https://www.kismetwireless.net/docs/api/device_views/#list-device-views
 # messages        = false # Ref: https://www.kismetwireless.net/docs/api/messages/#recent-messages
 # alerts          = false # Ref: https://www.kismetwireless.net/docs/api/alerts/#recent-alerts
 channels_summary  = false # Ref: https://www.kismetwireless.net/docs/api/channels/#channel-summary
@@ -67,47 +67,8 @@ channels_summary  = 10
 # datasources     = 10
 
 [kismet.fields.devices]
-all = [
-  "kismet.device.base.key",
-  "kismet.device.base.macaddr",
-  "kismet.device.base.related_devices",
-  "kismet.device.base.name",
-  "kismet.device.base.commonname",
-  "kismet.server.uuid",
-  "kismet.device.base.basic_type_set",
-  "kismet.device.base.first_time",
-  "kismet.device.base.last_time",
-  "kismet.device.base.packets.total",
-  "kismet.device.base.packets.rx_total",
-  "kismet.device.base.packets.tx_total",
-  "kismet.device.base.packets.llc",
-  "kismet.device.base.packets.error",
-  "kismet.device.base.packets.data",
-  "kismet.device.base.packets.crypt",
-  "kismet.device.base.packets.filtered",
-  "kismet.device.base.datasize",
-  "kismet.device.base.channel",
-  "kismet.device.base.frequency",
-  "kismet.device.base.freq_khz_map",
-  "kismet.device.base.num_alerts",
-  "kismet.device.base.seenby",
-  "kismet.device.base.phyname",
-  "kismet.device.base.manuf",
-  "kismet.device.base.signal/kismet.common.signal.type",
-  "kismet.device.base.signal/kismet.common.signal.last_signal",
-  "kismet.device.base.signal/kismet.common.signal.last_noise",
-  "kismet.device.base.signal/kismet.common.signal.min_signal",
-  "kismet.device.base.signal/kismet.common.signal.min_noise",
-  "kismet.device.base.signal/kismet.common.signal.max_signal",
-  "kismet.device.base.signal/kismet.common.signal.max_noise",
-  "kismet.device.base.signal/kismet.common.signal.maxseenrate",
-  "kismet.device.base.signal/kismet.common.signal.encodingset",
-  "kismet.device.base.signal/kismet.common.signal.carrierset",
-  "kismet.device.base.location",
-  "kismet.device.base.type"
-]
-phydot11_accesspoints = []
-phy-IEEE802.11 = [
+# Common fields excludes RRD
+common = [
   "kismet.device.base.key",
   "kismet.device.base.macaddr",
   "kismet.device.base.related_devices",
@@ -130,7 +91,6 @@ phy-IEEE802.11 = [
   "kismet.device.base.channel",
   "kismet.device.base.frequency",
   "kismet.device.base.freq_khz_map",
-  "dot11.device",
   "kismet.device.base.num_alerts",
   "kismet.device.base.seenby",
   "kismet.device.base.phyname",
@@ -146,8 +106,21 @@ phy-IEEE802.11 = [
   "kismet.device.base.signal/kismet.common.signal.encodingset",
   "kismet.device.base.signal/kismet.common.signal.carrierset",
   "kismet.device.base.location",
-  "kismet.device.base.type"
-  ]
+  "kismet.device.base.type",
+  "dot11.device",
+  "sensor.device",
+  "zwave.device",
+  "bluetooth.device",
+  "uav.device",
+  "nrfmousejack.device",
+  "btle.device",
+  "meter.device",
+  "adsb.device",
+  "802154.device",
+]
+all = []
+phydot11_accesspoints = []
+phy-IEEE802.11 = []
 phy-RFSENSOR = []
 phy-Z-Wave = []
 phy-Bluetooth = []
