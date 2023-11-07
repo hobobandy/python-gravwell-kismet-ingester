@@ -45,11 +45,15 @@ class KismetIngester:
         self._kismet_lock = asyncio.Lock()
         self._gravwell_lock = asyncio.Lock()
         self._sleep_loop = asyncio.Event()
-        self._timestamps = {"devices_by_phy": {}}
+
+        timestamp_backtrack = -1 * dict_get_deep(self.config, "general.backtrack", 60)
+        self._timestamps = {
+            "devices_by_phy": {},
+            "messages": timestamp_backtrack,
+            "alerts": timestamp_backtrack,
+        }
         for phy in VALID_KISMET_PHY + ("all",):
-            self._timestamps["devices_by_phy"][phy] = -1 * dict_get_deep(
-                self.config, "general.backtrack", 60
-            )
+            self._timestamps["devices_by_phy"][phy] = timestamp_backtrack
 
     async def start(self):
         # Prepare singleton-style clients
@@ -86,14 +90,38 @@ class KismetIngester:
                 self.kismet_system_status, trigger="interval", seconds=interval
             )
             logger.info(f"Scheduled `System Status` every {interval} seconds...")
+        if self.config["kismet"]["ingest"]["datasources"]:
+            interval = dict_get_deep(self.config, "kismet.intervals.datasources", 300)
+            self.scheduler.add_job(
+                self.kismet_datasources, trigger="interval", seconds=interval
+            )
+            logger.info(f"Scheduled `Datasources List` every {interval} seconds...")
         if self.config["kismet"]["ingest"]["channels_summary"]:
             interval = dict_get_deep(
-                self.config, "kismet.intervals.channels_summary", 10
+                self.config, "kismet.intervals.channels_summary", 30
             )
             self.scheduler.add_job(
                 self.kismet_channels_summary, trigger="interval", seconds=interval
             )
             logger.info(f"Scheduled `Channels Summary` every {interval} seconds...")
+        if self.config["kismet"]["ingest"]["packet_stats"]:
+            interval = dict_get_deep(self.config, "kismet.intervals.packet_stats", 240)
+            self.scheduler.add_job(
+                self.kismet_packet_stats, trigger="interval", seconds=interval
+            )
+            logger.info(f"Scheduled `Packet Stats` every {interval} seconds...")
+        if self.config["kismet"]["ingest"]["messages"]:
+            interval = dict_get_deep(self.config, "kismet.intervals.messages", 120)
+            self.scheduler.add_job(
+                self.kismet_messages, trigger="interval", seconds=interval
+            )
+            logger.info(f"Scheduled `Messages` every {interval} seconds...")
+        if self.config["kismet"]["ingest"]["alerts"]:
+            interval = dict_get_deep(self.config, "kismet.intervals.alerts", 10)
+            self.scheduler.add_job(
+                self.kismet_alerts, trigger="interval", seconds=interval
+            )
+            logger.info(f"Scheduled `Alerts` every {interval} seconds...")
         if self.config["kismet"]["ingest"]["devices"]:
             interval = dict_get_deep(self.config, "kismet.intervals.devices", 10)
             if self.config["kismet"]["ingest"]["devices_all"]:
@@ -198,7 +226,9 @@ class KismetIngester:
     @suppress_asyncio_cancelled_error
     async def kismet_system_status(self) -> None:
         uri = self.kismet_build_endpoint_uri("/system/status.json")
-        tag = dict_get_deep(self.config, "gravwell.tags.kismet_status", "kismet-status")
+        tag = dict_get_deep(
+            self.config, "gravwell.tags.kismet_system_status", "kismet-system_status"
+        )
         logger.info("System Status - Running...")
         async with self._kismet_lock:
             logger.debug("System Status - Acquired Kismet lock.")
@@ -219,6 +249,33 @@ class KismetIngester:
             finally:
                 logger.debug("System Status - Releasing Kismet lock.")
         logger.info("System Status - Completed.")
+
+    @suppress_asyncio_cancelled_error
+    async def kismet_datasources(self) -> None:
+        uri = self.kismet_build_endpoint_uri("/datasource/all_sources.json")
+        tag = dict_get_deep(
+            self.config, "gravwell.tags.kismet_datasources", "kismet-datasources"
+        )
+        logger.info("Datasources List - Running...")
+        async with self._kismet_lock:
+            logger.debug("Datasources List - Acquired Kismet lock.")
+            try:
+                r = await self.kismet_get_endpoint(uri, tag)
+                await self.gravwell_put_ingest_entity(tag, r.text)
+            except (httpx.HTTPStatusError, httpx.ConnectError) as e:
+                logger.critical("Datasources List:")
+                logger.critical(e)
+                logger.critical("Exiting due to unrecoverable error...")
+                await self.stop()
+            except httpx.ReadTimeout:
+                logger.critical(
+                    "Datasources List: HTTP request timed out - This may be caused by a big/slow Kismet API response."
+                )
+                logger.critical("Exiting due to unrecoverable error...")
+                await self.stop()
+            finally:
+                logger.debug("Datasources List - Releasing Kismet lock.")
+        logger.info("Datasources List - Completed.")
 
     @suppress_asyncio_cancelled_error
     async def kismet_channels_summary(self) -> None:
@@ -250,6 +307,101 @@ class KismetIngester:
         logger.info("Channels Summary - Completed.")
 
     @suppress_asyncio_cancelled_error
+    async def kismet_packet_stats(self) -> None:
+        uri = self.kismet_build_endpoint_uri("/packetchain/packet_stats.json")
+        tag = dict_get_deep(
+            self.config,
+            "gravwell.tags.kismet_packet_stats",
+            "kismet-packet_stats",
+        )
+        logger.info("Packet Stats - Running...")
+        async with self._kismet_lock:
+            logger.debug("Packet Stats - Acquired Kismet lock.")
+            try:
+                r = await self.kismet_get_endpoint(uri, tag)
+                await self.gravwell_put_ingest_entity(tag, r.text)
+            except (httpx.HTTPStatusError, httpx.ConnectError) as e:
+                logger.critical("Packet Stats:")
+                logger.critical(e)
+                logger.critical("Exiting due to unrecoverable error...")
+                await self.stop()
+            except httpx.ReadTimeout:
+                logger.critical(
+                    "Packet Stats: HTTP request timed out - This may be caused by a big/slow Kismet API response."
+                )
+                logger.critical("Exiting due to unrecoverable error...")
+                await self.stop()
+            finally:
+                logger.debug("Packet Stats - Releasing Kismet lock.")
+        logger.info("Packet Stats - Completed.")
+
+    @suppress_asyncio_cancelled_error
+    async def kismet_messages(self) -> None:
+        timestamp = self._timestamps["messages"]
+        uri = self.kismet_build_endpoint_uri(
+            f"/messagebus/last-time/{timestamp}/messages.json"
+        )
+        tag = dict_get_deep(
+            self.config,
+            "gravwell.tags.kismet_messages",
+            "kismet-messages",
+        )
+        logger.info("Messages - Running...")
+        async with self._kismet_lock:
+            logger.debug("Messages - Acquired Kismet lock.")
+            try:
+                self._timestamps["messages"] = int(datetime.now().timestamp())
+                r = await self.kismet_get_endpoint(uri, tag)
+                await self.gravwell_put_ingest_entity(tag, r.text)
+            except (httpx.HTTPStatusError, httpx.ConnectError) as e:
+                logger.critical("Messages:")
+                logger.critical(e)
+                logger.critical("Exiting due to unrecoverable error...")
+                await self.stop()
+            except httpx.ReadTimeout:
+                logger.critical(
+                    "Messages: HTTP request timed out - This may be caused by a big/slow Kismet API response."
+                )
+                logger.critical("Exiting due to unrecoverable error...")
+                await self.stop()
+            finally:
+                logger.debug("Messages - Releasing Kismet lock.")
+        logger.info("Messages - Completed.")
+
+    @suppress_asyncio_cancelled_error
+    async def kismet_alerts(self) -> None:
+        timestamp = self._timestamps["alerts"]
+        uri = self.kismet_build_endpoint_uri(
+            f"/alerts/last-time/{timestamp}/alerts.json"
+        )
+        tag = dict_get_deep(
+            self.config,
+            "gravwell.tags.kismet_alerts",
+            "kismet-alerts",
+        )
+        logger.info("Alerts - Running...")
+        async with self._kismet_lock:
+            logger.debug("Alerts - Acquired Kismet lock.")
+            try:
+                self._timestamps["alerts"] = int(datetime.now().timestamp())
+                r = await self.kismet_get_endpoint(uri, tag)
+                await self.gravwell_put_ingest_entity(tag, r.text)
+            except (httpx.HTTPStatusError, httpx.ConnectError) as e:
+                logger.critical("Alerts:")
+                logger.critical(e)
+                logger.critical("Exiting due to unrecoverable error...")
+                await self.stop()
+            except httpx.ReadTimeout:
+                logger.critical(
+                    "Alerts: HTTP request timed out - This may be caused by a big/slow Kismet API response."
+                )
+                logger.critical("Exiting due to unrecoverable error...")
+                await self.stop()
+            finally:
+                logger.debug("Alerts - Releasing Kismet lock.")
+        logger.info("Alerts - Completed.")
+
+    @suppress_asyncio_cancelled_error
     # @todo can we cache the tasks to prevent dict_get_deep from fetching every time?
     async def kismet_devices_by_phy(self, phy: str) -> None:
         timestamp = self._timestamps["devices_by_phy"][phy]
@@ -260,12 +412,8 @@ class KismetIngester:
         )
         logger.info(f"Devices by PHY ({phy}): Running...")
         async with self._kismet_lock:
-            logger.info(f"Devices by PHY ({phy}): Acquired Kismet lock.")
+            logger.debug(f"Devices by PHY ({phy}): Acquired Kismet lock.")
             try:
-                # @todo there may be duplicate data? any way to find timestamp from response?
-                self._timestamps["devices_by_phy"][phy] = int(
-                    datetime.now().timestamp()
-                )
                 # Field simplification, highly recommended to prevent Kismet hangups
                 # From most restrictive (PHY), to recommended (common), to failsafe (all fields)
                 data = {}
@@ -274,7 +422,9 @@ class KismetIngester:
                     fields = dict_get_deep(self.config, f"kismet.fields.devices.common")
                 if fields:
                     data["fields"] = fields
-                # logger.debug(f"Fields: {data}")
+                self._timestamps["devices_by_phy"][phy] = int(
+                    datetime.now().timestamp()
+                )
                 r = await self.kismet_post_endpoint(uri, tag, data)
                 resp = r.json()
                 logger.info(
@@ -295,7 +445,7 @@ class KismetIngester:
                 logger.critical("Exiting due to unrecoverable error...")
                 await self.stop()
             finally:
-                logger.info(f"Devices by PHY ({phy}): Releasing Kismet lock.")
+                logger.debug(f"Devices by PHY ({phy}): Releasing Kismet lock.")
         logger.info(f"Devices by PHY ({phy}): Completed.")
 
 
