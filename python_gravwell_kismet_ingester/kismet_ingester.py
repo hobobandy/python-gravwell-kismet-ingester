@@ -62,9 +62,6 @@ class KismetIngester:
         self._client = httpx.AsyncClient()
         self._client_gw = httpx.AsyncClient(headers=self.gw_headers())
 
-        await self.kismet_validate_creds()
-        await self.gravwell_validate_creds()
-
         self.create_tasks()
         await self.start_scheduler()
 
@@ -165,38 +162,6 @@ class KismetIngester:
     def gw_build_endpoint_uri(self, endpoint):
         netloc = f"{self.config['gravwell']['host']}:{self.config['gravwell']['port']}"
         return urlunsplit(("http", netloc, endpoint, None, None))
-
-    async def kismet_validate_creds(self):
-        uri = self.kismet_build_endpoint_uri("/session/check_login")
-        try:
-            r = await self._client.get(uri)
-            r.raise_for_status()
-            logger.info("Kismet credentials validated.")
-        except (httpx.HTTPStatusError, httpx.ConnectError) as e:
-            logger.critical("Kismet Credentials Validation:")
-            logger.critical(e)
-            raise SystemExit()
-        except httpx.ReadTimeout:
-            logger.critical(
-                "Kismet Credentials Validation: HTTP request timed out - This may be caused by a slow Kismet API response."
-            )
-            raise SystemExit()
-
-    async def gravwell_validate_creds(self):
-        uri = self.gw_build_endpoint_uri("/api/tags")
-        try:
-            r = await self._client_gw.get(uri)
-            r.raise_for_status()
-            logger.info("Gravwell credentials validated.")
-        except (httpx.HTTPStatusError, httpx.ConnectError) as e:
-            logger.critical("Gravwell Credentials Validation: ")
-            logger.critical(e)
-            raise SystemExit()
-        except httpx.ReadTimeout:
-            logger.critical(
-                "Gravwell Credentials Validation: HTTP request timed out - This may be caused by a slow Gravwell API response."
-            )
-            raise SystemExit()
 
     async def gravwell_put_ingest_entity(self, tag: str, data: str) -> bool:
         uri = self.gw_build_endpoint_uri("/api/ingest/json")
