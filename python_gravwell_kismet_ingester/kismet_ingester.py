@@ -6,7 +6,7 @@ import logging
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from datetime import datetime, timezone
 from functools import lru_cache
-from urllib.parse import urlunparse
+from urllib.parse import urlunsplit
 from .tomlconfig import dict_get_deep
 from .utils import suppress_asyncio_cancelled_error
 
@@ -160,11 +160,11 @@ class KismetIngester:
     def kismet_build_endpoint_uri(self, endpoint, scheme="http"):
         netloc = f"{self.config['kismet']['host']}:{self.config['kismet']['port']}"
         query = f"KISMET={self.config['kismet']['apikey']}"
-        return urlunparse((scheme, netloc, endpoint, None, query, None))
+        return urlunsplit((scheme, netloc, endpoint, query, None))
 
     def gw_build_endpoint_uri(self, endpoint):
         netloc = f"{self.config['gravwell']['host']}:{self.config['gravwell']['port']}"
-        return urlunparse(("http", netloc, endpoint, None, None, None))
+        return urlunsplit(("http", netloc, endpoint, None, None))
 
     async def kismet_validate_creds(self):
         uri = self.kismet_build_endpoint_uri("/session/check_login")
